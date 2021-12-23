@@ -1,0 +1,1 @@
+cmd_/root/Little_Penguin/Assignment_01/main.ko := ld -r  -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /root/Little_Penguin/Assignment_01/main.ko /root/Little_Penguin/Assignment_01/main.o /root/Little_Penguin/Assignment_01/main.mod.o;  true
