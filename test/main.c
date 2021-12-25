@@ -6,10 +6,17 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <asm/uaccess.h>
+#include <asm/io.h>
 
+#define VRAM_BASE 0x00001000
+#define VRAM_SIZE 0x000a0bff
+
+static void __iomem *vram;
 static dev_t first;
 static struct cdev c_dev;
 static struct class *cl;
+
 
 static int _open(struct inode *i, struct file *f)
 {
@@ -25,14 +32,41 @@ static int _close(struct inode *i, struct file *f)
 
 static ssize_t _read(struct file *f, char __user *buf, size_t len, loff_t *off)
 {
+	int i;
+
 	printk(KERN_INFO "Driver: read\n");
-	return 0;
+	if (*off >= VRAM_SIZE) 
+		return 0;
+	if(*off + len > VRAM_SIZE)
+		len = VRAM_SIZE - *off;
+	for (i = 0; i < len; i++)
+	{
+		u8 byte = ioread8((u8 *)vram + *off + i);
+		if (copy_to_user(buf + i, &byte, 1))
+			return -EFAULT;
+	}
+	*off += len;
+	return len;
 }
 
 static ssize_t _write(struct file *f, const char __user *buf, size_t len, loff_t *off)
 {
+	int i;
+
 	printk(KERN_INFO "Driver: write\n");
-        return len;
+	if (*off >= VRAM_SIZE)
+		return 0;
+	if (*off + len > VRAM_SIZE)
+		len = VRAM_SIZE - *off;
+	for (i = 0; i < len; i++)
+	{
+		u8 byte;
+		if (copy_from_user(&byte, buf + i, 1))
+			return -EFAULT;
+		iowrite8(byte, (u8 *)vram + *off + i);
+	}
+	*off += len;
+	return len;
 }
 
 static struct file_operations pugs_fops = 
@@ -50,6 +84,11 @@ static int __init ofcd_init(void) {
 	struct device *dev_ret;
 
 	printk(KERN_INFO "ofcd registered\n");
+	if((vram = ioremap(VRAM_BASE, VRAM_SIZE)) == NULL)
+	{
+		printk(KERN_ERR "Mapping video RAM failed\n");
+		return -ENOMEM;
+	}
 	if ((ret = alloc_chrdev_region(&first, 0, 1, "amassnao")) < 0)
 	{
 		return ret;
@@ -82,6 +121,7 @@ static void __exit ofcd_exit(void) {
 	device_destroy(cl, first);
 	class_destroy(cl);
 	unregister_chrdev_region(first, 1);
+	iounmap(vram);
 	printk(KERN_INFO "ofcd unregistred\n");
 }
 
