@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", DRIVERS=="usb", ACTION=="add", RUN+="/sbin/insmod /root/Little_Penguin/Assignment_04/detect_keyboard.ko"
+SUBSYSTEM=="usb", DRIVERS=="usb", ACTION=="remove", RUN+="/sbin/rmmod detect_keyboard"
